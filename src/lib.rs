@@ -73,7 +73,6 @@ pub const ELSES: &[&str] = &[
 pub struct State {
     used_conditionals: RefCell<HashSet<usize>>,
     used_elses: RefCell<HashSet<usize>>,
-    level: u64,
 }
 
 impl Default for State {
@@ -81,7 +80,6 @@ impl Default for State {
         State {
             used_conditionals: RefCell::new(HashSet::new()),
             used_elses: RefCell::new(HashSet::new()),
-            level: 0,
         }
     }
 }
@@ -228,44 +226,62 @@ pub fn write_io<'a>(state: &'a State) -> impl Fn(&str) -> IResult<&str, Expr> + 
     }
 }
 
+pub fn is_text_ending_char(c: char) -> bool {
+    c != ' '  && c != '\r' && c != '\n'
+}
+
 pub fn text(mut code1: &str) -> IResult<&str, Expr> {
-    let mut s = String::new();
+    let mut text = String::new();
     loop {
         let (code, _) = tag("/")(code1)?;
         let (code, t) = opt(tag("/"))(code)?;
-        if t.is_some() {
-            s.push('/');
-        }
+        t.map(|t| text.push_str(t));
         let (code, t) = opt(tag(" "))(code)?;
-        if t.is_some() {
-            s.push(' ');
-        }
-        let (code, part) = take_while(|c: char| c != ' ' && c != '/' && c != '\r' && c != '\n')(code)?;
-        s.push_str(part);
+        t.map(|t| text.push_str(t));
+
+        let (code, part) = take_while(|c: char|
+            c != '/' && !is_text_ending_char(c)
+        )(code)?;
+        text.push_str(part);
+
         code1 = code;
-        if code.is_empty() {
+        if code1.is_empty() {
             break;
         }
-        let c = code.chars().next().unwrap();
-        if c == ' ' || c == '\r' || c == '\n' {
+        let fst = code1.chars().next().unwrap();
+        if is_text_ending_char(fst) {
             break;
         }
     }
-    Ok((code1, Expr::Text(s)))
+    Ok((code1, Expr::Text(text)))
 }
 
 pub fn expr<'a>(state: &'a State) -> impl Fn(&str) -> IResult<&str, Expr> + 'a {
     move |code| {
-        let (code, expr) = ws(alt((fundef(state), funcall(state), text, write_io(state), scope(state), conditional(state), param, map(number, Expr::Number))))(code)?;
+        let (code, expr) = ws(alt((
+            fundef(state),
+            funcall(state),
+            text,
+            write_io(state),
+            scope(state),
+            conditional(state),
+            param,
+            map(number, Expr::Number)
+        )))(code)?;
+
         let (code, oper) = opt(oper(state))(code)?;
-        if let Some((op, rhs)) = oper {
-            Ok((code, Expr::Op(Box::new(expr), op, rhs)))
+        Ok((code, if let Some((op, rhs)) = oper {
+            Expr::Op(Box::new(expr), op, rhs)
         } else {
-            Ok((code, expr))
-        }
+            expr
+        }))
     }
 }
 
 pub fn parse<'a>(state: &State, code: &'a str) -> IResult<&'a str, Vec<Expr>> {
-    delimited(multispace0, separated_list(multispace1, expr(state)), multispace0)(code)
+    delimited(
+        multispace0,
+        separated_list(multispace1, expr(state)),
+        multispace0
+    )(code)
 }

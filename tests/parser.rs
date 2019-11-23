@@ -1,4 +1,4 @@
-use sos::{parse, Expr, State, Ident, Op};
+use sos::{parse, Expr as E, State, Ident, Op};
 
 fn b<T>(t: T) -> Box<T> {
     Box::new(t)
@@ -10,21 +10,21 @@ fn r<'a, T>(t: T) -> nom::IResult<&'a str, T> {
 
 #[test]
 fn parse_numbers() {
-    assert_eq!(r(vec![Expr::Number(1)]), parse(&State::default(), "."));
-    assert_eq!(r(vec![Expr::Number(2)]), parse(&State::default(), ":"));
-    assert_eq!(r(vec![Expr::Number(3)]), parse(&State::default(), ".:"));
-    assert_eq!(r(vec![Expr::Number(4)]), parse(&State::default(), "::"));
-    assert_eq!(r(vec![Expr::Number(5)]), parse(&State::default(), ".::"));
-    assert_eq!(r(vec![Expr::Number(6)]), parse(&State::default(), ":::"));
-    assert_eq!(r(vec![Expr::Number(7)]), parse(&State::default(), ".:::"));
+    assert_eq!(r(vec![E::Number(1)]), parse(&State::default(), "."));
+    assert_eq!(r(vec![E::Number(2)]), parse(&State::default(), ":"));
+    assert_eq!(r(vec![E::Number(3)]), parse(&State::default(), ".:"));
+    assert_eq!(r(vec![E::Number(4)]), parse(&State::default(), "::"));
+    assert_eq!(r(vec![E::Number(5)]), parse(&State::default(), ".::"));
+    assert_eq!(r(vec![E::Number(6)]), parse(&State::default(), ":::"));
+    assert_eq!(r(vec![E::Number(7)]), parse(&State::default(), ".:::"));
 }
 
 #[test]
 fn parse_conditional() {
     assert_eq!(
-        r(vec![Expr::Conditional {
-            condition: b(Expr::Number(1)),
-            success: b(Expr::Number(1)),
+        r(vec![E::Conditional {
+            condition: b(E::Number(1)),
+            success: b(E::Number(1)),
             failure: b(None),
         }]),
         parse(&State::default(), "given that..")
@@ -34,9 +34,9 @@ fn parse_conditional() {
 #[test]
 fn parse_conditional_whitespace() {
     assert_eq!(
-        r(vec![Expr::Conditional {
-            condition: b(Expr::Number(1)),
-            success: b(Expr::Number(1)),
+        r(vec![E::Conditional {
+            condition: b(E::Number(1)),
+            success: b(E::Number(1)),
             failure: b(None),
         }]),
         parse(&State::default(), "given that . . ")
@@ -46,10 +46,10 @@ fn parse_conditional_whitespace() {
 #[test]
 fn parse_conditional_with_else() {
     assert_eq!(
-        r(vec![Expr::Conditional {
-            condition: b(Expr::Number(1)),
-            success: b(Expr::Number(1)),
-            failure: b(Some(Expr::Number(1))),
+        r(vec![E::Conditional {
+            condition: b(E::Number(1)),
+            success: b(E::Number(1)),
+            failure: b(Some(E::Number(1))),
         }]),
         parse(&State::default(), "given that..otherwise.")
     );
@@ -58,10 +58,10 @@ fn parse_conditional_with_else() {
 #[test]
 fn parse_conditional_with_else_whitespace() {
     assert_eq!(
-        r(vec![Expr::Conditional {
-            condition: b(Expr::Number(1)),
-            success: b(Expr::Number(1)),
-            failure: b(Some(Expr::Number(1))),
+        r(vec![E::Conditional {
+            condition: b(E::Number(1)),
+            success: b(E::Number(1)),
+            failure: b(Some(E::Number(1))),
         }]),
         parse(&State::default(), "given that . . otherwise . ")
     );
@@ -70,7 +70,7 @@ fn parse_conditional_with_else_whitespace() {
 #[test]
 fn parse_function_definition() {
     assert_eq!(
-        r(vec![Expr::Definition(Ident("öäå".into()), b(Expr::Number(1)))]),
+        r(vec![E::Definition(Ident("öäå".into()), b(E::Number(1)))]),
         parse(&State::default(), "öäå¤.")
     );
 }
@@ -78,7 +78,7 @@ fn parse_function_definition() {
 #[test]
 fn parse_function_definition_whitespace() {
     assert_eq!(
-        r(vec![Expr::Definition(Ident("öäå".into()), b(Expr::Number(1)))]),
+        r(vec![E::Definition(Ident("öäå".into()), b(E::Number(1)))]),
         parse(&State::default(), "öäå ¤ .")
     );
 }
@@ -86,7 +86,7 @@ fn parse_function_definition_whitespace() {
 #[test]
 fn parse_function_definition_with_param() {
     assert_eq!(
-        r(vec![Expr::Definition(Ident("ö".into()), b(Expr::Param(1)))]),
+        r(vec![E::Definition(Ident("ö".into()), b(E::Param(1)))]),
         parse(&State::default(), r"ö ¤ \.")
     );
 }
@@ -95,8 +95,8 @@ fn parse_function_definition_with_param() {
 fn parse_multiple_function_definitions() {
     assert_eq!(
         r(vec![
-            Expr::Definition(Ident("ö".into()), b(Expr::Param(1))),
-            Expr::Definition(Ident("ä".into()), b(Expr::Param(1))),
+            E::Definition(Ident("ö".into()), b(E::Param(1))),
+            E::Definition(Ident("ä".into()), b(E::Param(1))),
         ]),
         parse(&State::default(), r"ö ¤ \.
         ä ¤ \.")
@@ -106,7 +106,7 @@ fn parse_multiple_function_definitions() {
 #[test]
 fn parse_preceding_whitespace() {
     assert_eq!(
-        r(vec![Expr::Number(1)]),
+        r(vec![E::Number(1)]),
         parse(&State::default(), r"     .")
     );
 }
@@ -114,7 +114,7 @@ fn parse_preceding_whitespace() {
 #[test]
 fn parse_scope() {
     assert_eq!(
-        r(vec![Expr::Scope(b(Expr::Number(1)))]),
+        r(vec![E::Scope(b(E::Number(1)))]),
         parse(&State::default(), r"{.)")
     );
 }
@@ -122,7 +122,7 @@ fn parse_scope() {
 #[test]
 fn parse_scope_whitespace() {
     assert_eq!(
-        r(vec![Expr::Scope(b(Expr::Number(1)))]),
+        r(vec![E::Scope(b(E::Number(1)))]),
         parse(&State::default(), r"{ . ) ")
     );
 }
@@ -130,7 +130,7 @@ fn parse_scope_whitespace() {
 #[test]
 fn parse_scope_ending_to_eof() {
     assert_eq!(
-        r(vec![Expr::Scope(b(Expr::Number(1)))]),
+        r(vec![E::Scope(b(E::Number(1)))]),
         parse(&State::default(), r"{.")
     );
 }
@@ -138,7 +138,7 @@ fn parse_scope_ending_to_eof() {
 #[test]
 fn parse_scope_ending_to_linebreak() {
     assert_eq!(
-        r(vec![Expr::Scope(b(Expr::Number(1)))]),
+        r(vec![E::Scope(b(E::Number(1)))]),
         parse(&State::default(), r"{.
         ")
     );
@@ -147,7 +147,7 @@ fn parse_scope_ending_to_linebreak() {
 #[test]
 fn parse_addition() {
     assert_eq!(
-        r(vec![Expr::Op(b(Expr::Number(1)), Op::Add, b(Expr::Number(1)))]),
+        r(vec![E::Op(b(E::Number(1)), Op::Add, b(E::Number(1)))]),
         parse(&State::default(), ".+.")
     )
 }
@@ -155,7 +155,7 @@ fn parse_addition() {
 #[test]
 fn parse_addition_whitespace() {
     assert_eq!(
-        r(vec![Expr::Op(b(Expr::Number(1)), Op::Add, b(Expr::Number(1)))]),
+        r(vec![E::Op(b(E::Number(1)), Op::Add, b(E::Number(1)))]),
         parse(&State::default(), ". + .")
     )
 }
@@ -163,7 +163,7 @@ fn parse_addition_whitespace() {
 #[test]
 fn parse_equality() {
     assert_eq!(
-        r(vec![Expr::Op(b(Expr::Number(1)), Op::Equ, b(Expr::Number(1)))]),
+        r(vec![E::Op(b(E::Number(1)), Op::Equ, b(E::Number(1)))]),
         parse(&State::default(), ".=.")
     )
 }
@@ -171,7 +171,7 @@ fn parse_equality() {
 #[test]
 fn parse_equality_whitespace() {
     assert_eq!(
-        r(vec![Expr::Op(b(Expr::Number(1)), Op::Equ, b(Expr::Number(1)))]),
+        r(vec![E::Op(b(E::Number(1)), Op::Equ, b(E::Number(1)))]),
         parse(&State::default(), ". = .")
     )
 }
@@ -180,11 +180,15 @@ fn parse_equality_whitespace() {
 #[test]
 fn parse_realer_function() {
     assert_eq!(
-        r(vec![Expr::Definition(Ident("ö".into()), b(
-            Expr::Op(
-                b(Expr::Scope(b(Expr::Op(b(Expr::Param(1)), Op::Add, b(Expr::Param(2)))))), 
+        r(vec![E::Definition(Ident("ö".into()), b(
+            E::Op(
+                b(E::Scope(b(E::Op(
+                    b(E::Param(1)),
+                    Op::Add,
+                    b(E::Param(2))
+                )))), 
                 Op::Mul,
-                b(Expr::Op(b(Expr::Param(1)), Op::Add, b(Expr::Number(7))))
+                b(E::Op(b(E::Param(1)), Op::Add, b(E::Number(7))))
         )))]),
         parse(&State::default(), r"ö ¤ {\. + \:) * \. + .:::")
     )
@@ -193,7 +197,7 @@ fn parse_realer_function() {
 #[test]
 fn parse_writing_io() {
     assert_eq!(
-        r(vec![Expr::WriteIO(b(Expr::Number(1)))]),
+        r(vec![E::WriteIO(b(E::Number(1)))]),
         parse(&State::default(), "@ << .")
     )
 }
@@ -201,7 +205,7 @@ fn parse_writing_io() {
 #[test]
 fn parse_simple_text() {
     assert_eq!(
-        r(vec![Expr::Text("simple".into())]),
+        r(vec![E::Text("simple".into())]),
         parse(&State::default(), "/simple")
     )
 }
@@ -209,7 +213,7 @@ fn parse_simple_text() {
 #[test]
 fn parse_space_text() {
     assert_eq!(
-        r(vec![Expr::Text("  ".into())]),
+        r(vec![E::Text("  ".into())]),
         parse(&State::default(), "/ / ")
     )
 }
@@ -217,7 +221,7 @@ fn parse_space_text() {
 #[test]
 fn parse_phrase_text() {
     assert_eq!(
-        r(vec![Expr::Text("Hello, World!".into())]),
+        r(vec![E::Text("Hello, World!".into())]),
         parse(&State::default(), "/Hello,/ World!")
     )
 }
@@ -225,7 +229,7 @@ fn parse_phrase_text() {
 #[test]
 fn parse_slash_text() {
     assert_eq!(
-        r(vec![Expr::Text("/".into())]),
+        r(vec![E::Text("/".into())]),
         parse(&State::default(), "//")
     )
 }
@@ -233,7 +237,7 @@ fn parse_slash_text() {
 #[test]
 fn parse_slash_space_text() {
     assert_eq!(
-        r(vec![Expr::Text("/ ".into())]),
+        r(vec![E::Text("/ ".into())]),
         parse(&State::default(), "// ")
     )
 }
@@ -241,7 +245,7 @@ fn parse_slash_space_text() {
 #[test]
 fn parse_space_slash_text() {
     assert_eq!(
-        r(vec![Expr::Text(" /".into())]),
+        r(vec![E::Text(" /".into())]),
         parse(&State::default(), "/ //")
     )
 }
@@ -249,7 +253,7 @@ fn parse_space_slash_text() {
 #[test]
 fn parse_slashmiddle_text() {
     assert_eq!(
-        r(vec![Expr::Text("eyey".into())]),
+        r(vec![E::Text("eyey".into())]),
         parse(&State::default(), "/ey/ey")
     )
 }
@@ -257,14 +261,14 @@ fn parse_slashmiddle_text() {
 #[test]
 fn parse_slashmiddle_space_text() {
     assert_eq!(
-        r(vec![Expr::Text("ey/ ey".into())]),
+        r(vec![E::Text("ey/ ey".into())]),
         parse(&State::default(), "/ey// ey")
     )
 }
 #[test]
 fn parse_text_ending_linebreak() {
     assert_eq!(
-        r(vec![Expr::Text("aaa".into())]),
+        r(vec![E::Text("aaa".into())]),
         parse(&State::default(), "/aaa
 ")
     )
@@ -273,7 +277,7 @@ fn parse_text_ending_linebreak() {
 #[test]
 fn parse_printing_text_to_io() {
     assert_eq!(
-        r(vec![Expr::WriteIO(b(Expr::Text("true".into())))]),
+        r(vec![E::WriteIO(b(E::Text("true".into())))]),
         parse(&State::default(), "@ << /true ")
     )
 }
@@ -281,7 +285,13 @@ fn parse_printing_text_to_io() {
 #[test]
 fn parse_call_function_in_scope() {
         assert_eq!(
-        r(vec![Expr::Scope(b(Expr::Call(Ident("ö".into()), vec![Expr::Number(1), Expr::Number(3)])))]),
+        r(vec![E::Scope(b(E::Call(
+            Ident("ö".into()),
+            vec![
+                E::Number(1),
+                E::Number(3)
+            ]
+        )))]),
         parse(&State::default(), "{ö . .:)")
     )
 }
@@ -289,10 +299,16 @@ fn parse_call_function_in_scope() {
 #[test]
 fn parse_compare_equality_of_number_and_function_call() {
     assert_eq!(
-        r(vec![Expr::Op(
-            b(Expr::Number(24)),
+        r(vec![E::Op(
+            b(E::Number(24)),
             Op::Equ,
-            b(Expr::Scope(b(Expr::Call(Ident("ö".into()), vec![Expr::Number(1), Expr::Number(3)]))))
+            b(E::Scope(b(E::Call(
+                Ident("ö".into()),
+                vec![
+                    E::Number(1),
+                    E::Number(3)
+                ]
+            ))))
         )]),
         parse(&State::default(), ":::::::::::: = {ö . .:)")
     )
@@ -302,14 +318,14 @@ fn parse_compare_equality_of_number_and_function_call() {
 fn parse_condition_that_prints() {
     assert_eq!(
         r(vec![
-            Expr::Conditional {
-                condition: b(Expr::Op(
-                    b(Expr::Number(2)),
+            E::Conditional {
+                condition: b(E::Op(
+                    b(E::Number(2)),
                     Op::Equ,
-                    b(Expr::Number(1)),
+                    b(E::Number(1)),
                 )),
                 success: b(
-                    Expr::WriteIO(b(Expr::Text("true".into())))
+                    E::WriteIO(b(E::Text("true".into())))
                 ),
                 failure: b(
                     None
@@ -324,17 +340,23 @@ fn parse_condition_that_prints() {
 fn parse_realer_expression() {
     assert_eq!(
         r(vec![
-            Expr::Conditional {
-                condition: b(Expr::Op(
-                    b(Expr::Number(24)),
+            E::Conditional {
+                condition: b(E::Op(
+                    b(E::Number(24)),
                     Op::Equ,
-                    b(Expr::Scope(b(Expr::Call(Ident("ö".into()), vec![Expr::Number(1), Expr::Number(3)]))))
+                    b(E::Scope(b(E::Call(
+                        Ident("ö".into()),
+                        vec![
+                            E::Number(1),
+                            E::Number(3)
+                        ])
+                    )))
                 )),
                 success: b(
-                    Expr::WriteIO(b(Expr::Text("true".into())))
+                    E::WriteIO(b(E::Text("true".into())))
                 ),
                 failure: b(
-                    Some(Expr::WriteIO(b(Expr::Text("false".into()))))
+                    Some(E::WriteIO(b(E::Text("false".into()))))
                 )
             }
         ]),
@@ -346,23 +368,33 @@ fn parse_realer_expression() {
 fn parse_example() {
     assert_eq!(
         r(vec![
-            Expr::Definition(Ident("ö".into()), b(
-                Expr::Op(
-                    b(Expr::Scope(b(Expr::Op(b(Expr::Param(1)), Op::Add, b(Expr::Param(2)))))), 
+            E::Definition(Ident("ö".into()), b(
+                E::Op(
+                    b(E::Scope(b(E::Op(
+                        b(E::Param(1)),
+                        Op::Add,
+                        b(E::Param(2))
+                    )))), 
                     Op::Mul,
-                    b(Expr::Op(b(Expr::Param(1)), Op::Add, b(Expr::Number(7))))
+                    b(E::Op(b(E::Param(1)), Op::Add, b(E::Number(7))))
             ))),
-            Expr::Conditional {
-                condition: b(Expr::Op(
-                    b(Expr::Number(24)),
+            E::Conditional {
+                condition: b(E::Op(
+                    b(E::Number(24)),
                     Op::Equ,
-                    b(Expr::Scope(b(Expr::Call(Ident("ö".into()), vec![Expr::Number(1), Expr::Number(3)]))))
+                    b(E::Scope(b(E::Call(
+                        Ident("ö".into()),
+                        vec![
+                            E::Number(1),
+                            E::Number(3)
+                        ]
+                    ))))
                 )),
                 success: b(
-                    Expr::WriteIO(b(Expr::Text("true".into())))
+                    E::WriteIO(b(E::Text("true".into())))
                 ),
                 failure: b(
-                    Some(Expr::WriteIO(b(Expr::Text("false".into()))))
+                    Some(E::WriteIO(b(E::Text("false".into()))))
                 )
             }
         ]),
