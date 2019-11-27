@@ -28,6 +28,10 @@ impl State {
     fn add(&mut self, name: Ident, body: Expr) {
         self.functions.last_mut().unwrap().insert(name, body);
     }
+
+    fn resolve(&self, name: &Ident) -> Option<&Expr> {
+        self.functions.iter().rev().flat_map(|m| m.get(name)).next()
+    }
 }
 
 enum Value {
@@ -55,7 +59,7 @@ fn interpret_expr(state: &mut State, expr: &Expr) -> Value {
             failure,
         } => interpret_conditional(state, condition, success, failure),
         Definition(name, body) => interpret_definition(state, name, body),
-        Call(name, params) => {}
+        Call(name, params) => interpret_call(state, name, params),
         Param(param) => {}
         Text(text) => {}
         Vector(components) => {}
@@ -99,4 +103,9 @@ fn is_truthy(value: Value) -> bool {
 fn interpret_definition(state: &mut State, name: &Ident, body: &Expr) -> Value {
     state.add(name.clone(), body.clone());
     Value::Function(body.clone())
+}
+
+fn interpret_call(state: &mut State, name: &Ident, params: &[Expr]) -> Value {
+    let fun = state.resolve(name).expect(format!("Function with name `{name}` wasn't defined.", name=name.0));
+
 }
