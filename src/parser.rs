@@ -1,18 +1,21 @@
 use nom::branch::*;
 use nom::bytes::complete::*;
 use nom::character::complete::*;
-use nom::sequence::*;
 use nom::combinator::*;
 use nom::multi::*;
-use nom::{error::{ParseError, ErrorKind}, IResult, InputLength};
+use nom::sequence::*;
+use nom::{
+    error::{ErrorKind, ParseError},
+    IResult, InputLength,
+};
 
 use std::cell::RefCell;
 use std::collections::HashSet;
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Eq, Debug, Clone, Hash)]
 pub struct Ident(pub String);
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone)]
 pub enum Expr {
     Scope(Box<Expr>),
     Op(Box<Expr>, Op, Box<Expr>),
@@ -30,16 +33,16 @@ pub enum Expr {
     ReadIO,
 }
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone)]
 pub enum VectorComponent {
     Number(Number),
-    Param(Param)
+    Param(Param),
 }
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone)]
 pub struct Param(pub Number);
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone)]
 pub enum Op {
     Equ,
     Add,
@@ -95,7 +98,9 @@ impl Default for State {
 
 //🆘
 
-pub fn ws<'a, T: 'a>(parser: impl Fn(&'a str) -> IResult<&'a str, T>) -> impl Fn(&'a str) -> IResult<&'a str, T> {
+pub fn ws<'a, T: 'a>(
+    parser: impl Fn(&'a str) -> IResult<&'a str, T>,
+) -> impl Fn(&'a str) -> IResult<&'a str, T> {
     terminated(parser, space0)
 }
 
@@ -106,7 +111,6 @@ pub fn eof<I: Copy + InputLength, E: ParseError<I>>(input: I) -> IResult<I, I, E
         Err(nom::Err::Error(E::from_error_kind(input, ErrorKind::Eof)))
     }
 }
-
 
 pub fn cond<'a>(
     used: &'a RefCell<HashSet<usize>>,
@@ -182,17 +186,20 @@ pub fn param(code: &str) -> IResult<&str, Param> {
 }
 
 pub fn vector(code: &str) -> IResult<&str, Expr> {
-    let (code, v) = separated_nonempty_list(space1, alt((
-        map(number, VectorComponent::Number),
-        map(param, VectorComponent::Param)
-    )))(code)?;
+    let (code, v) = separated_nonempty_list(
+        space1,
+        alt((
+            map(number, VectorComponent::Number),
+            map(param, VectorComponent::Param),
+        )),
+    )(code)?;
     Ok((code, Expr::Vector(v)))
 }
 
 pub fn ident(code: &str) -> IResult<&str, Ident> {
     map(
         take_while1(|c: char| !c.is_ascii() && c.is_alphanumeric()),
-        |s: &str| Ident(s.into())
+        |s: &str| Ident(s.into()),
     )(code)
 }
 
@@ -217,11 +224,7 @@ pub fn scope<'a>(state: &'a State) -> impl Fn(&str) -> IResult<&str, Expr> + 'a 
     move |code| {
         let (code, _) = paren_start(code)?;
         let (code, body) = expr(state)(code)?;
-        let (code, _) = alt((
-            paren_end,
-            peek(line_ending),
-            eof
-        ))(code)?;
+        let (code, _) = alt((paren_end, peek(line_ending), eof))(code)?;
         Ok((code, Expr::Scope(Box::new(body))))
     }
 }
@@ -232,7 +235,7 @@ pub fn oper<'a>(state: &'a State) -> impl Fn(&str) -> IResult<&str, (Op, Box<Exp
             map(tag("="), |_| Op::Equ),
             map(tag("*"), |_| Op::Mul),
             map(tag("+"), |_| Op::Add),
-            map(tag("-"), |_| Op::Sub)
+            map(tag("-"), |_| Op::Sub),
         )))(code)?;
         let (code, rhs) = expr(state)(code)?;
         Ok((code, (op, Box::new(rhs))))
@@ -249,7 +252,7 @@ pub fn write_io<'a>(state: &'a State) -> impl Fn(&str) -> IResult<&str, Expr> + 
 }
 
 pub fn is_text_ending_char(c: char) -> bool {
-    c == ' '  || c == '\r' || c == '\n'
+    c == ' ' || c == '\r' || c == '\n'
 }
 
 pub fn text(mut code1: &str) -> IResult<&str, Expr> {
@@ -261,9 +264,7 @@ pub fn text(mut code1: &str) -> IResult<&str, Expr> {
         let (code, t) = opt(tag(" "))(code)?;
         t.map(|t| text.push_str(t));
 
-        let (code, part) = take_while(|c: char|
-            c != '/' && !is_text_ending_char(c)
-        )(code)?;
+        let (code, part) = take_while(|c: char| c != '/' && !is_text_ending_char(c))(code)?;
         text.push_str(part);
 
         code1 = code;
@@ -293,15 +294,18 @@ pub fn expr<'a>(state: &'a State) -> impl Fn(&str) -> IResult<&str, Expr> + 'a {
             scope(state),
             conditional(state),
             map(param, Expr::Param),
-            vector
+            vector,
         )))(code)?;
 
         let (code, oper) = opt(oper(state))(code)?;
-        Ok((code, if let Some((op, rhs)) = oper {
-            Expr::Op(Box::new(expr), op, rhs)
-        } else {
-            expr
-        }))
+        Ok((
+            code,
+            if let Some((op, rhs)) = oper {
+                Expr::Op(Box::new(expr), op, rhs)
+            } else {
+                expr
+            },
+        ))
     }
 }
 
@@ -309,6 +313,6 @@ pub fn parse<'a>(state: &State, code: &'a str) -> IResult<&'a str, Vec<Expr>> {
     delimited(
         multispace0,
         separated_list(multispace1, expr(state)),
-        multispace0
+        multispace0,
     )(code)
 }
