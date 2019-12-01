@@ -4,13 +4,13 @@ use crate::parser::{Expr, Ident, Op};
 use std::collections::HashMap;
 use std::iter::once;
 
-struct State {
+pub struct State {
     functions: Vec<HashMap<Ident, Expr>>,
     params: Vec<Vec<Value>>,
 }
 
 impl State {
-    fn new() -> Self {
+    pub fn new() -> Self {
         Self {
             functions: vec![HashMap::new()],
             params: vec![],
@@ -60,8 +60,8 @@ impl State {
     }
 }
 
-#[derive(Clone)]
-enum Value {
+#[derive(PartialEq, Clone, Debug)]
+pub enum Value {
     Text(String),
     Boolean(bool),
     Vector(Vec<i64>), // TODO: Big integerize?
@@ -69,13 +69,13 @@ enum Value {
     Empty,
 }
 
-fn interpret(state: &State, ast: &[Expr]) -> Value {
+pub fn interpret(state: &State, ast: &[Expr]) -> Value {
     // TODO: What should be the value of top level? Where you can define functions? Etc.
     for expr in ast {}
     Value::Empty
 }
 
-fn interpret_expr(state: &mut State, expr: &Expr) -> Value {
+pub fn interpret_expr(state: &mut State, expr: &Expr) -> Value {
     use self::Expr::*;
     match expr {
         Scope(e) => state.within_scope(|mut state| interpret_expr(&mut state, &*e)),
@@ -95,19 +95,19 @@ fn interpret_expr(state: &mut State, expr: &Expr) -> Value {
     }
 }
 
-fn interpret_op(state: &mut State, lhs: &Expr, op: &Op, rhs: &Expr) -> Value {
+pub fn interpret_op(state: &mut State, lhs: &Expr, op: &Op, rhs: &Expr) -> Value {
     use self::Op::*;
     let lhs = interpret_expr(state, &*lhs);
     let rhs = interpret_expr(state, &*rhs);
     match op {
         Add => lhs,
-        Equ => lhs,
+        Equ => Value::Boolean(lhs == rhs),
         Mul => lhs,
         Sub => lhs,
     }
 }
 
-fn interpret_conditional(
+pub fn interpret_conditional(
     state: &mut State,
     condition: &Expr,
     success: &Expr,
@@ -124,7 +124,7 @@ fn interpret_conditional(
     }
 }
 
-fn is_truthy(state: &mut State, value: Value) -> bool {
+pub fn is_truthy(state: &mut State, value: Value) -> bool {
     match value {
         Value::Boolean(b) => b,
         Value::Vector(c) => c.iter().enumerate().fold(3i64, |acc, (i, cur)| acc ^ ((cur << (acc & 7)) * i as i64)) % 2 == 0,
@@ -137,12 +137,12 @@ fn is_truthy(state: &mut State, value: Value) -> bool {
     }
 }
 
-fn interpret_definition(state: &mut State, name: &Ident, body: &Expr) -> Value {
+pub fn interpret_definition(state: &mut State, name: &Ident, body: &Expr) -> Value {
     state.add(name.clone(), body.clone());
     Value::Function(body.clone())
 }
 
-fn interpret_call(state: &mut State, name: &Ident, params: &[Expr]) -> Value {
+pub fn interpret_call(state: &mut State, name: &Ident, params: &[Expr]) -> Value {
     let params = params.iter().map(|p| interpret_expr(state, p)).collect();
     let fun = state.resolve_fun(name).expect(&format!("Function with name `{name}` wasn't defined.", name=name.0));
     state.with_params(params, |mut state| {
@@ -150,20 +150,19 @@ fn interpret_call(state: &mut State, name: &Ident, params: &[Expr]) -> Value {
     })
 }
 
-fn interpret_param(state: &State, param: u64) -> Value {
+pub fn interpret_param(state: &State, param: u64) -> Value {
     state.resolve_param(param).expect(&format!("Unbound param `{}`", param)).clone()
 }
 
-fn interpret_vector(state: &mut State, parts: &[VectorComponent]) -> Value {
+pub fn interpret_vector(state: &mut State, parts: &[VectorComponent]) -> Value {
     use self::VectorComponent::*;
-    parts.iter().flat_map(|component| match component {
+    Value::Vector(parts.iter().flat_map(|component| match component {
         Number(n) => vec![*n as i64],
         Param(p) => vectorize(state, interpret_param(state, p.0)),
-    });
-    panic!()
+    }).collect())
 }
 
-fn vectorize(state: &mut State, value: Value) -> Vec<i64> {
+pub fn vectorize(state: &mut State, value: Value) -> Vec<i64> {
     match value {
         Value::Vector(n) => n,
         Value::Boolean(b) => vec![if b { 42 } else { 7 }],

@@ -108,6 +108,35 @@ fn parse_function_definition() {
 }
 
 #[test]
+fn parse_function_definition_in_scope() {
+    assert_eq!(
+        r(vec![E::Scope(Box::new(E::Definition(Ident("ö".into()), b(number(1)))))]),
+        parse(&State::default(), "{ö¤.)")
+    );
+}
+
+#[test]
+fn parse_function_definition_in_scope_whitespace() {
+    assert_eq!(
+        r(vec![E::Scope(Box::new(E::Definition(Ident("ö".into()), b(number(1)))))]),
+        parse(&State::default(), "{ ö ¤ . )")
+    );
+}
+
+#[test]
+fn parse_equality_of_two_function_definitions() {
+    assert_eq!(
+        r(vec![E::Op(
+            b(E::Scope(Box::new(E::Definition(Ident("ö".into()), b(number(1)))))),
+            Op::Equ,
+            b(E::Scope(Box::new(E::Definition(Ident("ö".into()), b(number(1)))))),
+        )]),
+        parse(&State::default(), "{ö¤.)={ö¤.)")
+    );
+}
+
+
+#[test]
 fn parse_function_definition_whitespace() {
     assert_eq!(
         r(vec![E::Definition(Ident("öäå".into()), b(number(1)))]),
