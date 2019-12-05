@@ -1,8 +1,10 @@
-use sos::interpreter::{Value, State, self};
+use sos::interpreter::{self, State, Value};
 use sos::parser;
 
 fn interpret_expr(code: &str) -> Value {
-    let res = parser::expr(&parser::State::default())(code).expect("Parsing failed").1;
+    let res = parser::expr(&parser::State::default())(code)
+        .expect("Parsing failed")
+        .1;
     interpreter::interpret_expr(&mut State::new(), &res)
 }
 
@@ -56,7 +58,24 @@ fn interpret_equality_of_vectors() {
 
 #[test]
 fn interpret_equality_of_functions() {
-    assert_eq!(Value::Boolean(true), interpret_expr(r#"{ö ¤ \. + \:) = {ä ¤ \. + \:)"#));
-    assert_eq!(Value::Boolean(false), interpret_expr(r#"{ö ¤ \. + \:) = {ä ¤ \: + \:)"#));
-    assert_eq!(Value::Boolean(true), interpret_expr(r#"{ö ¤ å ¤ \.) = {ä ¤ 🆘 ¤ \.)"#));
+    assert_eq!(
+        Value::Boolean(true),
+        interpret_expr(r#"{ö ¤ \. + \:) = {ä ¤ \. + \:)"#)
+    );
+    assert_eq!(
+        Value::Boolean(false),
+        interpret_expr(r#"{ö ¤ \. + \:) = {ä ¤ \: + \:)"#)
+    );
+    assert_eq!(
+        Value::Boolean(true),
+        interpret_expr(r#"{ö ¤ å ¤ \.) = {ä ¤ 🆘 ¤ \.)"#)
+    );
+}
+
+#[test]
+fn interpret_addition_of_numbers() {
+    assert_eq!(Value::Vector(vec![2]), interpret_expr(r#". + ."#));
+    assert_eq!(Value::Vector(vec![3]), interpret_expr(r#". + :"#));
+    assert_eq!(Value::Vector(vec![3]), interpret_expr(r#": + ."#));
+    assert_eq!(Value::Vector(vec![4]), interpret_expr(r#": + :"#));
 }
